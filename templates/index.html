@@ -1,29 +1,171 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Solidity Repositories</title>
+    <title>GitHub Repository Network</title>
     <style>
+        #graph-container {
+            width: 100%;
+            height: 100vh;
+        }
         body {
             background-color: black;
             color: white;
-            margin: 0;
-            padding: 0;
         }
-
-        #plot {
-            width: 100%;
-            height: 100vh;
+        .node {
+            stroke: #fff;
+            stroke-width: 1.5px;
+            cursor: pointer;
+        }
+        .link {
+            stroke: #90caf9;
+            stroke-opacity: 0.6;
+        }
+        .tooltip {
+            position: absolute;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 5px;
+            border-radius: 5px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .tooltip.visible {
+            opacity: 1;
         }
     </style>
 </head>
 <body>
- <div id="plot">
-        {{ plot_html|safe }}
-        {% for repo in repos_data %}
-        <p>User: {{ repo.user }}</p>
-        <p>Repository: {{ repo.name }}</p>
-    {% endfor %}
-    </div>
+    <h1>GitHub Repository Network</h1>
 
+    <div id="graph-container"></div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // Function to fetch the graph data
+        function fetchGraphData() {
+            return fetch('/data')
+                .then(response => response.json())
+                .catch(error => console.log('Error:', error));
+        }
+
+        // Function to render the graph
+        function renderGraph(graphData) {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            // Create an SVG container
+            const svg = d3
+                .select("#graph-container")
+                .append("svg")
+                .attr("width", "100%")
+                .attr("height", "100%")
+                .attr("viewBox", `0 0 ${width} ${height}`)
+                .attr("preserveAspectRatio", "xMidYMid meet")
+                .call(
+                    d3.zoom().on("zoom", (event) => {
+                        svg.attr("transform", event.transform);
+                    })
+                )
+                .append("g");
+
+            // Create a force simulation
+            const simulation = d3
+                .forceSimulation(graphData.nodes)
+                .force("link", d3.forceLink(graphData.links).id((d) => d.id))
+                .force("charge", d3.forceManyBody().strength(-100))
+                .force("center", d3.forceCenter(width / 2, height / 2));
+
+            // Create links
+            const link = svg
+                .selectAll("line")
+                .data(graphData.links)
+                .enter()
+                .append("line")
+                .attr("class", "link");
+
+            // Create nodes as circles
+            const node = svg
+                .selectAll("circle")
+                .data(graphData.nodes)
+                .enter()
+                .append("circle")
+                .attr("class", "node")
+                .attr("r", 5)
+                .style("fill", (d) => (d.group === "repo" ? "#2196f3" : getRandomColor()))
+                .on("mouseover", (event, d) => {
+                    tooltip
+                        .html(d.id)
+                        .style("left", `${event.pageX + 10}px`)
+                        .style("top", `${event.pageY + 10}px`)
+                        .classed("visible", true);
+                })
+                .on("mouseout", () => {
+                    tooltip.classed("visible", false);
+                });
+
+            // Create tooltip
+            const tooltip = d3
+                .select("#graph-container")
+                .append("div")
+                .attr("class", "tooltip");
+
+            // Add drag capabilities to nodes
+            node.call(
+                d3
+                    .drag()
+                    .on("start", (event, d) => {
+                        if (!event.active) simulation.alphaTarget(0.3).restart();
+                        d.fx = d.x;
+                        d.fy = d.y;
+                    })
+                    .on("drag", (event, d) => {
+                        d.fx = event.x;
+                        d.fy = event.y;
+                    })
+                    .on("end", (event, d) => {
+                        if (!event.active) simulation.alphaTarget(0);
+                        d.fx = null;
+                        d.fy = null;
+                    })
+            );
+
+            // Add tooltips to nodes
+            node.append("title").text((d) => (d.email ? d.email : d.id));
+
+            // Define tick function to update node and link positions
+            const tick = () => {
+                link
+                    .attr("x1", (d) => d.source.x)
+                    .attr("y1", (d) => d.source.y)
+                    .attr("x2", (d) => d.target.x)
+                    .attr("y2", (d) => d.target.y);
+
+                node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+            };
+
+            // Update positions of nodes and links on each tick of the simulation
+            simulation.on("tick", tick);
+        }
+
+        // Fetch the graph data and render the graph
+        fetchGraphData()
+            .then(graphData => renderGraph(graphData))
+            .catch(error => console.log('Error:', error));
+
+        // Function to generate a random color
+        function getRandomColor() {
+            const letters = "0123456789ABCDEF";
+            let color = "#";
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+    </script>
 </body>
 </html>

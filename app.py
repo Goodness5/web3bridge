@@ -14,7 +14,7 @@ app = Flask(__name__)
 def get_user_repos(username):
     url = f"https://api.github.com/users/{username}/repos"
     headers = {
-        'Authorization': 'Bearer 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',
+        'Authorization': 'Bearer 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',
     }
     response = requests.get(url, headers=headers)
 
@@ -80,7 +80,7 @@ def data():
         if 'email' in G.nodes[node]:
             graph_data['nodes'].append({
                 'id': node,
-                'group': 'repository',
+                'group': 'repo',
                 'email': G.nodes[node]['email']
             })
         else:

@@ -96,7 +96,7 @@
                 .append("circle")
                 .attr("class", "node")
                 .attr("r", 5)
-                .style("fill", (d) => (d.group === "repo" ? "#2196f3" : getRandomColor()))
+                .style("fill", (d) => (d.group === "repository" ? "#2196f3" : getRandomColor()))
                 .on("mouseover", (event, d) => {
                     tooltip
                         .html(d.id)

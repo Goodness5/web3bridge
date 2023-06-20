@@ -4,51 +4,66 @@ import networkx as nx
 from flask import Flask, render_template, jsonify
 from datetime import datetime
 from functools import lru_cache
+import gspread
+from google.oauth2.service_account import Credentials
 
 app = Flask(__name__)
 
-# csv_file = "/home/Iamsuperman/web3bridge/data.csv"  # Production
+# Configure the Google Sheets API credentials
+scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+credentials = Credentials.from_service_account_file('web3bridge.json', scopes=scope)
 
 # Cache the results of the get_user_repos function
 @lru_cache(maxsize=128)
 def get_user_repos(username):
     url = f"https://api.github.com/users/{username}/repos"
     headers = {
-        'Authorization': 'Bearer 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',
+        'Authorization': 'Bearer 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',
     }
     response = requests.get(url, headers=headers)
+    print('response',response)
 
     if response.status_code == 200:
         repos = response.json()
+        print('repos:',repos)
         return repos
     else:
         print("Error:", response.text)
         return []
 
 def create_github_graph():
-    csv_file = "./data.csv"
+    sheet_url = 'https://docs.google.com/spreadsheets/d/1x5aImcjMQShiM9XP7ouy7w6Yizu3Qkeu1gE4ipi-Apw/edit#gid=0'
+    sheet_name = 'github_analytics'
+
+    client = gspread.authorize(credentials)
+    spreadsheet = client.open_by_url(sheet_url)
+    print(spreadsheet)
+    worksheet = spreadsheet.get_worksheet(0) 
+
+    rows = worksheet.get_all_values()
+    print('rows :',rows)
+    header = rows[0]
+    rows = rows[1:]
+
     repos_data = []
 
-    with open(csv_file, 'r') as file:
-        csv_reader = csv.reader(file)
-        header = next(csv_reader)
+    for row in rows:
+        if len(row) >= 3:
+            email = row[1]
+            username = row[2]
+            print("username:" ,username)
+            github_repos = get_user_repos(username)
 
-        for row in csv_reader:
-            if len(row) >= 3:
-                email = row[1]
-                username = row[0]
-                github_repos = get_user_repos(username)
-
-                for repo in github_repos:
-                    if "message" not in repo:
-                        created_date = repo["created_at"]
-                        created_date = datetime.strptime(created_date, "%Y-%m-%dT%H:%M:%SZ")
-                        if created_date >= datetime(2021, 6, 1):
-                            repo["email"] = email
-                            repo["username"] = username
-                            repos_data.append(repo.copy())
-                    else:
-                        print(f"Error: {repo['message']}")
+            for repo in github_repos:
+                if "message" not in repo:
+                    created_date = repo["created_at"]
+                    created_date = datetime.strptime(created_date, "%Y-%m-%dT%H:%M:%SZ")
+                    if created_date >= datetime(2021, 6, 1):
+                        repo["email"] = email
+                        repo["username"] = username
+                        repos_data.append(repo.copy())
+                else:
+                    print(f"Error: {repo['message']}")
 
     G = nx.Graph()
     for repo in repos_data:

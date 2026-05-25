@@ -12,7 +12,7 @@ load_dotenv()
 app = Flask(__name__)
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-CSV_FILE = os.getenv("CSV_FILE", "users.csv")
+CSV_FILE = os.getenv("CSV_FILE", "data.csv")
 
 
 @lru_cache(maxsize=128)

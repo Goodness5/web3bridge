@@ -1,6 +1,4 @@
+flask
 requests
 networkx
-flask
-gspread
-google-auth
-
+python-dotenv

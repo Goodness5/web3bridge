@@ -1,1 +1,6 @@
 requests
+networkx
+flask
+gspread
+google-auth
+
